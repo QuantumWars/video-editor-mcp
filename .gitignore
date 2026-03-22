@@ -1,9 +1,38 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
+*.pyo
 *.egg-info/
 dist/
 build/
+*.egg
+
+# Environment
 .env
 .mcp.json
+
+# IDE / Editor
 .claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Media files (don't commit large binaries)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.aac
+*.flac
+
+# Output directories
+clips_output/
+
+# Personal docs
+docs/
+demo.md

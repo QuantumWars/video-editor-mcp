@@ -5,14 +5,35 @@ build-backend = "hatchling.build"
 [project]
 name = "clipping-mcp"
 version = "0.1.0"
-description = "MCP server for video/audio editing with FFmpeg and ElevenLabs"
+description = "MCP server for video/audio editing with FFmpeg and ElevenLabs — use Claude to edit your videos"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+authors = [
+    { name = "QuantumWars" },
+]
+keywords = ["mcp", "video-editing", "ffmpeg", "elevenlabs", "claude", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Multimedia :: Sound/Audio",
+]
 dependencies = [
     "mcp>=1.0.0",
     "elevenlabs>=1.0.0",
+    "opencv-python-headless>=4.8.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/QuantumWars/video-editor-mcp"
+Repository = "https://github.com/QuantumWars/video-editor-mcp"
+Issues = "https://github.com/QuantumWars/video-editor-mcp/issues"
 
 [project.scripts]
 clipping = "clipping.server:main"
