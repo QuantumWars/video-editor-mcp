@@ -59,6 +59,59 @@ def _words_to_segments(words: list[dict]) -> list[dict]:
     return segments
 
 
+def _format_timestamp(seconds: float) -> str:
+    """Convert seconds to MM:SS.ss or HH:MM:SS.ss for display."""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = seconds % 60
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{secs:05.2f}"
+    return f"{minutes}:{secs:05.2f}"
+
+
+def _words_to_transcript_segments(words: list[dict]) -> list[dict]:
+    """Collapse word-level diarization into contiguous speaker segments with text.
+
+    Each word dict should have 'speaker_id', 'start', 'end', 'text' keys.
+    Returns list of {speaker, start, end, text} dicts.
+    """
+    if not words:
+        return []
+
+    segments = []
+    current_speaker = words[0].get("speaker_id")
+    seg_start = words[0].get("start", 0)
+    seg_end = words[0].get("end", 0)
+    seg_words = [words[0].get("text", "")]
+
+    for word in words[1:]:
+        speaker = word.get("speaker_id")
+        if speaker == current_speaker:
+            seg_end = word.get("end", seg_end)
+            seg_words.append(word.get("text", ""))
+        else:
+            segments.append({
+                "speaker": current_speaker,
+                "start": seg_start,
+                "end": seg_end,
+                "text": " ".join(seg_words).strip(),
+            })
+            current_speaker = speaker
+            seg_start = word.get("start", seg_end)
+            seg_end = word.get("end", seg_start)
+            seg_words = [word.get("text", "")]
+
+    # Append the last segment
+    segments.append({
+        "speaker": current_speaker,
+        "start": seg_start,
+        "end": seg_end,
+        "text": " ".join(seg_words).strip(),
+    })
+
+    return segments
+
+
 def _merge_short_segments(segments: list[dict], min_duration: float) -> list[dict]:
     """Absorb segments shorter than min_duration into their neighbors.
 
@@ -267,6 +320,114 @@ def register(mcp: FastMCP):
                 "segments": segments,
                 "total_duration": total_duration,
             }, indent=2)
+
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    @mcp.tool()
+    async def podcast_transcribe(
+        file_path: str,
+        num_speakers: int = 2,
+        language_code: str | None = None,
+    ) -> str:
+        """Transcribe and diarize a podcast, returning the full text with speaker labels and timestamps.
+
+        Use this to read what was said in a podcast so you can identify reel-worthy
+        moments, summarize content, or create clips with project_add_clip().
+
+        Args:
+            file_path: Path to the audio or video file.
+            num_speakers: Expected number of speakers (default: 2).
+            language_code: Optional language code (e.g. "en", "es").
+        """
+        file_path = validate_file_exists(file_path)
+        client = _get_elevenlabs_client()
+
+        # Extract audio to temp mp3
+        tmp_dir = tempfile.mkdtemp(prefix="podcast_transcribe_")
+        tmp_audio = os.path.join(tmp_dir, "audio.mp3")
+
+        try:
+            result = run_ffmpeg([
+                "-i", file_path,
+                "-vn",
+                "-acodec", "libmp3lame",
+                "-ab", "128k",
+                "-y", tmp_audio,
+            ], tmp_audio)
+
+            if not result.success:
+                return f"Error extracting audio: {result.error}"
+
+            # Call ElevenLabs Scribe v2
+            kwargs = {
+                "model_id": "scribe_v2",
+                "diarize": True,
+                "num_speakers": num_speakers,
+                "timestamps_granularity": "word",
+            }
+            if language_code:
+                kwargs["language_code"] = language_code
+
+            with open(tmp_audio, "rb") as f:
+                response = client.speech_to_text.convert(file=f, **kwargs)
+
+            # Extract words with speaker info
+            words = []
+            if hasattr(response, "words") and response.words:
+                for w in response.words:
+                    words.append({
+                        "text": w.text if hasattr(w, "text") else str(w),
+                        "speaker_id": w.speaker_id if hasattr(w, "speaker_id") else None,
+                        "start": w.start if hasattr(w, "start") else 0,
+                        "end": w.end if hasattr(w, "end") else 0,
+                    })
+
+            # Collapse into transcript segments (with text)
+            segments = _words_to_transcript_segments(words)
+
+            # Gather unique speakers
+            speakers = sorted(set(seg["speaker"] for seg in segments if seg["speaker"] is not None))
+
+            # Get total duration
+            data = probe_json(file_path)
+            total_duration = float(data.get("format", {}).get("duration", 0))
+
+            # Build output
+            lines = []
+
+            # Header
+            lines.append("PODCAST TRANSCRIPT")
+            lines.append(f"File: {file_path}")
+            lines.append(f"Duration: {_format_timestamp(total_duration)} ({total_duration:.1f}s)")
+            lines.append(f"Speakers: {', '.join(speakers)}")
+            lines.append(f"Segments: {len(segments)}")
+            lines.append("")
+            lines.append("=" * 60)
+            lines.append("")
+
+            # Full transcript
+            for seg in segments:
+                duration = seg["end"] - seg["start"]
+                start_ts = _format_timestamp(seg["start"])
+                end_ts = _format_timestamp(seg["end"])
+                lines.append(f"[{seg['speaker']}] ({start_ts} - {end_ts}, {duration:.1f}s)")
+                lines.append(seg["text"])
+                lines.append("")
+
+            lines.append("=" * 60)
+            lines.append("")
+
+            # Segment index
+            lines.append("SEGMENT INDEX (for clip creation)")
+            lines.append("Use start/end seconds with project_add_clip(source, start_time, end_time)")
+            lines.append("")
+
+            for i, seg in enumerate(segments):
+                preview = seg["text"][:50] + "..." if len(seg["text"]) > 50 else seg["text"]
+                lines.append(f"  {i:3d}. [{seg['speaker']}] {seg['start']:7.2f}s - {seg['end']:7.2f}s | {preview}")
+
+            return "\n".join(lines)
 
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)

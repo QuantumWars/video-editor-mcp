@@ -30,6 +30,12 @@ build/
 *.aac
 *.flac
 
+# Remotion editor
+src/clipping/editor/node_modules/
+src/clipping/editor/dist/
+src/clipping/editor/public/media/
+src/clipping/editor/public/preview-props.json
+
 # Output directories
 clips_output/
 

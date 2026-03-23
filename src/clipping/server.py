@@ -5,13 +5,14 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("clipping", log_level="WARNING")
 
 # Register all tool modules
-from clipping.tools import analysis_tools, ffmpeg_tools, audio_tools, elevenlabs_tools, podcast_tools
+from clipping.tools import analysis_tools, ffmpeg_tools, audio_tools, elevenlabs_tools, podcast_tools, project_tools
 
 analysis_tools.register(mcp)
 ffmpeg_tools.register(mcp)
 audio_tools.register(mcp)
 elevenlabs_tools.register(mcp)
 podcast_tools.register(mcp)
+project_tools.register(mcp)
 
 
 def main():

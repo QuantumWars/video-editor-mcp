@@ -2,7 +2,7 @@
 
 MCP server that gives Claude the power to edit your videos and audio — powered by FFmpeg and ElevenLabs.
 
-**27 tools** for trimming, cutting, concatenating, speed changes, format conversion, audio extraction, AI voiceover, podcast multicam editing, and more.
+**41 tools** for trimming, cutting, concatenating, speed changes, format conversion, audio extraction, AI voiceover, podcast multicam editing, timeline-based project editing with Remotion rendering, and more.
 
 ## Quick Start
 
@@ -10,6 +10,7 @@ MCP server that gives Claude the power to edit your videos and audio — powered
 
 - [FFmpeg](https://ffmpeg.org/download.html) installed and on PATH
 - Python 3.11+
+- [Node.js](https://nodejs.org) 18+ (for project rendering and preview via Remotion)
 - (Optional) `ELEVENLABS_API_KEY` for TTS, voice cloning, and audio isolation
 
 ### Install with Claude Code
@@ -94,6 +95,26 @@ claude mcp add clipping -- /path/to/video-editor-mcp/.venv/bin/clipping
 | `podcast_multicam_merge` | Merge two camera angles using speaker segments |
 | `podcast_multicam_edit` | End-to-end: diarize + auto-detect speakers + merge |
 
+### Project Timeline & Rendering (14 tools)
+
+| Tool | Description |
+|------|-------------|
+| `project_create` | Create a new video editing project |
+| `project_add_clip` | Add a clip to the timeline |
+| `project_update_clip` | Update clip properties |
+| `project_remove_clip` | Remove a clip |
+| `project_reorder_clips` | Reorder clips on a track |
+| `project_add_overlay` | Add text, caption, or image overlay |
+| `project_update_overlay` | Update overlay properties |
+| `project_remove_overlay` | Remove an overlay |
+| `project_add_transition` | Add transition between clips |
+| `project_remove_transition` | Remove a transition |
+| `project_get_state` | View project state |
+| `project_render` | Render to final video via Remotion |
+| `project_preview` | Launch live preview in browser |
+
+> **Auto-setup:** The Remotion editor is bundled with the package. On first `project_render` or `project_preview` call, it auto-extracts to `~/.clipping/editor/` and runs `npm install`. Subsequent calls skip setup unless the package version changes.
+
 ## Usage Examples
 
 Once installed, just talk to Claude naturally:
@@ -110,15 +131,18 @@ Once installed, just talk to Claude naturally:
 ```
 src/clipping/
   server.py              # MCP entry point
+  __init__.py            # Package version
   tools/
     analysis_tools.py    # Media info, silence/scene detection
     ffmpeg_tools.py      # Core video editing operations
     audio_tools.py       # Audio extraction, mixing, segmentation
     elevenlabs_tools.py  # AI voice and audio tools
     podcast_tools.py     # Multicam podcast editing
+    project_tools.py     # Timeline, overlays, transitions, render
   utils/
     ffmpeg.py            # FFmpeg/FFprobe execution helpers
     media.py             # File validation and path utilities
+  editor/                # Bundled Remotion editor (auto-extracted on first render)
 ```
 
 ## License

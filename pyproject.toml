@@ -40,3 +40,15 @@ clipping = "clipping.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/clipping"]
+
+[tool.hatch.build]
+include = [
+  "src/clipping/**/*.py",
+  "src/clipping/editor/**",
+]
+exclude = [
+  "src/clipping/editor/node_modules/**",
+  "src/clipping/editor/dist/**",
+  "src/clipping/editor/public/media/**",
+  "src/clipping/editor/public/preview-props.json",
+]
